@@ -1,6 +1,7 @@
 # Google Tasks MCP Server
 
 ![gtasks mcp logo](./logo.jpg)
+[![smithery badge](https://smithery.ai/badge/@zcaceres/gtasks)](https://smithery.ai/server/@zcaceres/gtasks)
 
 This MCP server integrates with Google Tasks to allow listing, reading, searching, creating, updating, and deleting tasks.
 
@@ -71,6 +72,14 @@ The server provides access to Google Tasks resources:
 7. Rename the key file to `gcp-oauth.keys.json` and place into the root of this repo (i.e. `gcp-oauth.keys.json`)
 
 Make sure to build the server with either `npm run build` or `npm run watch`.
+
+### Installing via Smithery
+
+To install Google Tasks Server for Claude Desktop automatically via [Smithery](https://smithery.ai/server/@zcaceres/gtasks):
+
+```bash
+npx -y @smithery/cli install @zcaceres/gtasks --client claude
+```
 
 ### Authentication
 
