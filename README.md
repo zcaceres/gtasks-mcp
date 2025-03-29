@@ -94,6 +94,8 @@ To authenticate and save credentials:
 
 To integrate this server with the desktop app, add the following to your app's server configuration:
 
+#### MacOS
+
 ```json
 {
   "mcpServers": {
@@ -101,6 +103,21 @@ To integrate this server with the desktop app, add the following to your app's s
       "command": "/opt/homebrew/bin/node",
       "args": [
         "{ABSOLUTE PATH TO FILE HERE}/dist/index.js"
+      ]
+    }
+  }
+}
+```
+
+#### Windows
+
+```json
+{
+  "mcpServers": {
+    "gtasks": {
+      "command": "C:\\Program Files\\nodejs\\node.exe",
+      "args": [
+        "{ABSOLUTE PATH TO FILE HERE}\\dist\\index.js"
       ]
     }
   }
