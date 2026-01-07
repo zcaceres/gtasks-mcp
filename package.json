@@ -1,6 +1,6 @@
 {
-  "name": "@modelcontextprotocol/server-gtasks",
-  "version": "0.0.1",
+  "name": "g-tasks-mcp",
+  "version": "0.0.4",
   "description": "MCP server for interacting with Google Tasks",
   "license": "MIT",
   "author": "zcaceres (@zachcaceres zach.dev)",
@@ -8,7 +8,7 @@
   "bugs": "https://github.com/modelcontextprotocol/servers/issues",
   "type": "module",
   "bin": {
-    "mcp-server-gtasks": "dist/index.js"
+    "g-tasks-mcp": "dist/index.js"
   },
   "files": [
     "dist"
