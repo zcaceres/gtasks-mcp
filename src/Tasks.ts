@@ -278,3 +278,193 @@ export class TaskActions {
     };
   }
 }
+
+export class TaskListActions {
+  private static formatTaskList(taskList: tasks_v1.Schema$TaskList): string {
+    return [
+      `Title: ${taskList.title || "Untitled"}`,
+      `ID: ${taskList.id || "Unknown"}`,
+      `Updated: ${taskList.updated || "Unknown"}`,
+    ].join(" | ");
+  }
+
+  private static formatTaskLists(
+    taskLists: tasks_v1.Schema$TaskList[],
+  ): string {
+    return taskLists
+      .map((tl, index) => `${index + 1}. ${this.formatTaskList(tl)}`)
+      .join("\n");
+  }
+
+  static async list(
+    request: CallToolRequest,
+    tasks: tasks_v1.Tasks,
+  ): Promise<CallToolResult> {
+    const cursor = request.params.arguments?.cursor as string | undefined;
+
+    const params: { maxResults: number; pageToken?: string } = {
+      maxResults: MAX_TASK_RESULTS,
+    };
+
+    if (cursor) {
+      params.pageToken = cursor;
+    }
+
+    const response = await tasks.tasklists.list(params);
+    const taskLists = response.data.items || [];
+    const nextPageToken = response.data.nextPageToken;
+
+    let resultText = `Found ${taskLists.length} task list(s):\n${this.formatTaskLists(taskLists)}`;
+
+    if (nextPageToken) {
+      resultText += `\n\nMore results available. Use cursor: "${nextPageToken}"`;
+    }
+
+    return {
+      content: [
+        {
+          type: "text",
+          text: resultText,
+        },
+      ],
+      isError: false,
+    };
+  }
+
+  static async get(
+    request: CallToolRequest,
+    tasks: tasks_v1.Tasks,
+  ): Promise<CallToolResult> {
+    const taskListId = request.params.arguments?.taskListId as string;
+
+    if (!taskListId) {
+      throw new Error("Task list ID is required");
+    }
+
+    const response = await tasks.tasklists.get({
+      tasklist: taskListId,
+    });
+
+    const taskList = response.data;
+
+    const details = [
+      `Title: ${taskList.title || "Untitled"}`,
+      `ID: ${taskList.id || "Unknown"}`,
+      `Kind: ${taskList.kind || "Unknown"}`,
+      `ETag: ${taskList.etag || "Unknown"}`,
+      `Updated: ${taskList.updated || "Unknown"}`,
+      `Self Link: ${taskList.selfLink || "N/A"}`,
+    ].join("\n");
+
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Task List Details:\n${details}`,
+        },
+      ],
+      isError: false,
+    };
+  }
+
+  static async create(
+    request: CallToolRequest,
+    tasks: tasks_v1.Tasks,
+  ): Promise<CallToolResult> {
+    const title = request.params.arguments?.title as string;
+
+    if (!title) {
+      throw new Error("Task list title is required");
+    }
+
+    if (title.length > 1024) {
+      throw new Error("Task list title must not exceed 1024 characters");
+    }
+
+    const response = await tasks.tasklists.insert({
+      requestBody: {
+        title: title,
+      },
+    });
+
+    const taskList = response.data;
+
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Task list created successfully:\nTitle: ${taskList.title}\nID: ${taskList.id}`,
+        },
+      ],
+      isError: false,
+    };
+  }
+
+  static async update(
+    request: CallToolRequest,
+    tasks: tasks_v1.Tasks,
+  ): Promise<CallToolResult> {
+    const taskListId = request.params.arguments?.taskListId as string;
+    const title = request.params.arguments?.title as string;
+
+    if (!taskListId) {
+      throw new Error("Task list ID is required");
+    }
+
+    if (!title) {
+      throw new Error("Task list title is required");
+    }
+
+    if (title.length > 1024) {
+      throw new Error("Task list title must not exceed 1024 characters");
+    }
+
+    const response = await tasks.tasklists.update({
+      tasklist: taskListId,
+      requestBody: {
+        title: title,
+      },
+    });
+
+    const taskList = response.data;
+
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Task list updated successfully:\nTitle: ${taskList.title}\nID: ${taskList.id}`,
+        },
+      ],
+      isError: false,
+    };
+  }
+
+  static async delete(
+    request: CallToolRequest,
+    tasks: tasks_v1.Tasks,
+  ): Promise<CallToolResult> {
+    const taskListId = request.params.arguments?.taskListId as string;
+
+    if (!taskListId) {
+      throw new Error("Task list ID is required");
+    }
+
+    if (taskListId === "@default") {
+      throw new Error("Cannot delete the default task list");
+    }
+
+    await tasks.tasklists.delete({
+      tasklist: taskListId,
+    });
+
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Task list "${taskListId}" deleted successfully`,
+        },
+      ],
+      isError: false,
+    };
+  }
+}

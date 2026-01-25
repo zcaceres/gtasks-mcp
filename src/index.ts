@@ -13,7 +13,7 @@ import {
 import fs from "fs";
 import { google, tasks_v1 } from "googleapis";
 import path from "path";
-import { TaskActions, TaskResources } from "./Tasks.js";
+import { TaskActions, TaskListActions, TaskResources } from "./Tasks.js";
 
 const tasks = google.tasks("v1");
 
@@ -201,6 +201,81 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           required: ["id", "uri"],
         },
       },
+      {
+        name: "list-tasklists",
+        description: "List all task lists in Google Tasks",
+        inputSchema: {
+          type: "object",
+          properties: {
+            cursor: {
+              type: "string",
+              description:
+                "Cursor for pagination (nextPageToken from previous response)",
+            },
+          },
+        },
+      },
+      {
+        name: "get-tasklist",
+        description: "Get details of a specific task list by ID",
+        inputSchema: {
+          type: "object",
+          properties: {
+            taskListId: {
+              type: "string",
+              description: "Task list ID (use 'list-tasklists' to find IDs)",
+            },
+          },
+          required: ["taskListId"],
+        },
+      },
+      {
+        name: "create-tasklist",
+        description: "Create a new task list in Google Tasks",
+        inputSchema: {
+          type: "object",
+          properties: {
+            title: {
+              type: "string",
+              description: "Title for the new task list (max 1024 characters)",
+            },
+          },
+          required: ["title"],
+        },
+      },
+      {
+        name: "update-tasklist",
+        description: "Update an existing task list's title in Google Tasks",
+        inputSchema: {
+          type: "object",
+          properties: {
+            taskListId: {
+              type: "string",
+              description: "Task list ID to update",
+            },
+            title: {
+              type: "string",
+              description: "New title for the task list (max 1024 characters)",
+            },
+          },
+          required: ["taskListId", "title"],
+        },
+      },
+      {
+        name: "delete-tasklist",
+        description:
+          "Delete a task list from Google Tasks (cannot delete default list)",
+        inputSchema: {
+          type: "object",
+          properties: {
+            taskListId: {
+              type: "string",
+              description: "Task list ID to delete",
+            },
+          },
+          required: ["taskListId"],
+        },
+      },
     ],
   };
 });
@@ -229,6 +304,26 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   if (request.params.name === "clear") {
     const taskResult = await TaskActions.clear(request, tasks);
     return taskResult;
+  }
+  if (request.params.name === "list-tasklists") {
+    const result = await TaskListActions.list(request, tasks);
+    return result;
+  }
+  if (request.params.name === "get-tasklist") {
+    const result = await TaskListActions.get(request, tasks);
+    return result;
+  }
+  if (request.params.name === "create-tasklist") {
+    const result = await TaskListActions.create(request, tasks);
+    return result;
+  }
+  if (request.params.name === "update-tasklist") {
+    const result = await TaskListActions.update(request, tasks);
+    return result;
+  }
+  if (request.params.name === "delete-tasklist") {
+    const result = await TaskListActions.delete(request, tasks);
+    return result;
   }
   throw new Error("Tool not found");
 });
