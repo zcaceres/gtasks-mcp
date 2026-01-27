@@ -13,6 +13,7 @@ import {
 import fs from "fs";
 import { google, tasks_v1 } from "googleapis";
 import path from "path";
+import { fileURLToPath } from "url";
 import { TaskActions, TaskListActions, TaskResources } from "./Tasks.js";
 
 const tasks = google.tasks("v1");
@@ -87,6 +88,17 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
               type: "string",
               description: "Search query",
             },
+            includeCompleted: {
+              type: "boolean",
+              description:
+                "Include completed tasks in search results (default: false)",
+            },
+            status: {
+              type: "string",
+              enum: ["needsAction", "completed"],
+              description:
+                "Filter by status: 'needsAction' for active tasks, 'completed' for completed tasks",
+            },
           },
           required: ["query"],
         },
@@ -100,6 +112,17 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             cursor: {
               type: "string",
               description: "Cursor for pagination",
+            },
+            includeCompleted: {
+              type: "boolean",
+              description:
+                "Include completed tasks in results (default: false)",
+            },
+            status: {
+              type: "string",
+              enum: ["needsAction", "completed"],
+              description:
+                "Filter by status: 'needsAction' for active tasks, 'completed' for completed tasks",
             },
           },
         },
@@ -164,7 +187,8 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       },
       {
         name: "update",
-        description: "Update a task in Google Tasks",
+        description:
+          "Update a task in Google Tasks. Only provided fields will be updated; omitted fields remain unchanged.",
         inputSchema: {
           type: "object",
           properties: {
@@ -175,10 +199,6 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             id: {
               type: "string",
               description: "Task ID",
-            },
-            uri: {
-              type: "string",
-              description: "Task URI",
             },
             title: {
               type: "string",
@@ -198,7 +218,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
               description: "Due date",
             },
           },
-          required: ["id", "uri"],
+          required: ["id"],
         },
       },
       {
@@ -329,14 +349,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 });
 
 const credentialsPath = path.join(
-  path.dirname(new URL(import.meta.url).pathname),
+  path.dirname(fileURLToPath(import.meta.url)),
   "../.gtasks-server-credentials.json",
 );
 
 async function authenticateAndSaveCredentials() {
   console.log("Launching auth flow…");
   const p = path.join(
-    path.dirname(new URL(import.meta.url).pathname),
+    path.dirname(fileURLToPath(import.meta.url)),
     "../gcp-oauth.keys.json",
   );
 
@@ -358,8 +378,23 @@ async function loadCredentialsAndRunServer() {
   }
 
   const credentials = JSON.parse(fs.readFileSync(credentialsPath, "utf-8"));
-  const auth = new google.auth.OAuth2();
+
+  // Load OAuth app credentials to enable token refresh
+  const oauthKeysPath =
+    process.env.GOOGLE_OAUTH_CREDENTIALS ||
+    path.join(path.dirname(credentialsPath), "gcp-oauth.keys.json");
+  const oauthKeys = JSON.parse(fs.readFileSync(oauthKeysPath, "utf-8"));
+  const { client_id, client_secret } = oauthKeys.installed;
+
+  const auth = new google.auth.OAuth2(client_id, client_secret);
   auth.setCredentials(credentials);
+
+  // Auto-save refreshed tokens
+  auth.on("tokens", (tokens) => {
+    const updated = { ...credentials, ...tokens };
+    fs.writeFileSync(credentialsPath, JSON.stringify(updated, null, 2));
+  });
+
   google.options({ auth });
 
   const transport = new StdioServerTransport();
