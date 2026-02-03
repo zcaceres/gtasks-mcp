@@ -93,7 +93,11 @@ export class TaskActions {
     return taskList.map((task) => this.formatTask(task)).join("\n");
   }
 
-  private static async _list(request: CallToolRequest, tasks: tasks_v1.Tasks) {
+  private static async _list(
+    request: CallToolRequest,
+    tasks: tasks_v1.Tasks,
+    options?: { includeCompleted?: boolean },
+  ) {
     const taskListsResponse = await tasks.tasklists.list({
       maxResults: MAX_TASK_RESULTS,
     });
@@ -101,12 +105,16 @@ export class TaskActions {
     const taskLists = taskListsResponse.data.items || [];
     let allTasks: tasks_v1.Schema$Task[] = [];
 
+    const includeCompleted = options?.includeCompleted ?? false;
+
     for (const taskList of taskLists) {
       if (taskList.id) {
         try {
           const tasksResponse = await tasks.tasks.list({
             tasklist: taskList.id,
             maxResults: MAX_TASK_RESULTS,
+            showCompleted: true,
+            showHidden: includeCompleted,
           });
 
           const items = tasksResponse.data.items || [];
@@ -156,32 +164,28 @@ export class TaskActions {
   static async update(request: CallToolRequest, tasks: tasks_v1.Tasks) {
     const taskListId =
       (request.params.arguments?.taskListId as string) || "@default";
-    const taskUri = request.params.arguments?.uri as string;
     const taskId = request.params.arguments?.id as string;
-    const taskTitle = request.params.arguments?.title as string;
-    const taskNotes = request.params.arguments?.notes as string;
-    const taskStatus = request.params.arguments?.status as string;
-    const taskDue = request.params.arguments?.due as string;
-
-    if (!taskUri) {
-      throw new Error("Task URI is required");
-    }
+    const taskTitle = request.params.arguments?.title as string | undefined;
+    const taskNotes = request.params.arguments?.notes as string | undefined;
+    const taskStatus = request.params.arguments?.status as string | undefined;
+    const taskDue = request.params.arguments?.due as string | undefined;
 
     if (!taskId) {
       throw new Error("Task ID is required");
     }
 
-    const task = {
-      id: taskId,
-      title: taskTitle,
-      notes: taskNotes,
-      status: taskStatus,
-      due: taskDue,
-    };
+    // Build task object with only explicitly provided fields
+    const task: Partial<tasks_v1.Schema$Task> = { id: taskId };
 
-    const taskResponse = await tasks.tasks.update({
+    if (taskTitle !== undefined) task.title = taskTitle;
+    if (taskNotes !== undefined) task.notes = taskNotes;
+    if (taskStatus !== undefined) task.status = taskStatus;
+    if (taskDue !== undefined) task.due = taskDue;
+
+    // Use patch instead of update for partial updates
+    const taskResponse = await tasks.tasks.patch({
       tasklist: taskListId,
-      task: taskUri,
+      task: taskId,
       requestBody: task,
     });
 
@@ -197,14 +201,23 @@ export class TaskActions {
   }
 
   static async list(request: CallToolRequest, tasks: tasks_v1.Tasks) {
-    const allTasks = await this._list(request, tasks);
-    const taskList = this.formatTaskList(allTasks);
+    const includeCompleted =
+      (request.params.arguments?.includeCompleted as boolean) ?? false;
+    const statusFilter = request.params.arguments?.status as string | undefined;
+
+    const allTasks = await this._list(request, tasks, { includeCompleted });
+
+    const filteredTasks = statusFilter
+      ? allTasks.filter((task) => task.status === statusFilter)
+      : allTasks;
+
+    const taskList = this.formatTaskList(filteredTasks);
 
     return {
       content: [
         {
           type: "text",
-          text: `Found ${allTasks.length} tasks:\n${taskList}`,
+          text: `Found ${filteredTasks.length} tasks:\n${taskList}`,
         },
       ],
       isError: false,
@@ -238,13 +251,18 @@ export class TaskActions {
 
   static async search(request: CallToolRequest, tasks: tasks_v1.Tasks) {
     const userQuery = request.params.arguments?.query as string;
+    const includeCompleted =
+      (request.params.arguments?.includeCompleted as boolean) ?? false;
+    const statusFilter = request.params.arguments?.status as string | undefined;
 
-    const allTasks = await this._list(request, tasks);
-    const filteredItems = allTasks.filter(
-      (task) =>
+    const allTasks = await this._list(request, tasks, { includeCompleted });
+    const filteredItems = allTasks.filter((task) => {
+      const matchesQuery =
         task.title?.toLowerCase().includes(userQuery.toLowerCase()) ||
-        task.notes?.toLowerCase().includes(userQuery.toLowerCase()),
-    );
+        task.notes?.toLowerCase().includes(userQuery.toLowerCase());
+      const matchesStatus = statusFilter ? task.status === statusFilter : true;
+      return matchesQuery && matchesStatus;
+    });
 
     const taskList = this.formatTaskList(filteredItems);
 
@@ -252,7 +270,7 @@ export class TaskActions {
       content: [
         {
           type: "text",
-          text: `Found ${allTasks.length} tasks:\n${taskList}`,
+          text: `Found ${filteredItems.length} tasks:\n${taskList}`,
         },
       ],
       isError: false,
@@ -272,6 +290,196 @@ export class TaskActions {
         {
           type: "text",
           text: `Tasks from tasklist ${taskListId} cleared`,
+        },
+      ],
+      isError: false,
+    };
+  }
+}
+
+export class TaskListActions {
+  private static formatTaskList(taskList: tasks_v1.Schema$TaskList): string {
+    return [
+      `Title: ${taskList.title || "Untitled"}`,
+      `ID: ${taskList.id || "Unknown"}`,
+      `Updated: ${taskList.updated || "Unknown"}`,
+    ].join(" | ");
+  }
+
+  private static formatTaskLists(
+    taskLists: tasks_v1.Schema$TaskList[],
+  ): string {
+    return taskLists
+      .map((tl, index) => `${index + 1}. ${this.formatTaskList(tl)}`)
+      .join("\n");
+  }
+
+  static async list(
+    request: CallToolRequest,
+    tasks: tasks_v1.Tasks,
+  ): Promise<CallToolResult> {
+    const cursor = request.params.arguments?.cursor as string | undefined;
+
+    const params: { maxResults: number; pageToken?: string } = {
+      maxResults: MAX_TASK_RESULTS,
+    };
+
+    if (cursor) {
+      params.pageToken = cursor;
+    }
+
+    const response = await tasks.tasklists.list(params);
+    const taskLists = response.data.items || [];
+    const nextPageToken = response.data.nextPageToken;
+
+    let resultText = `Found ${taskLists.length} task list(s):\n${this.formatTaskLists(taskLists)}`;
+
+    if (nextPageToken) {
+      resultText += `\n\nMore results available. Use cursor: "${nextPageToken}"`;
+    }
+
+    return {
+      content: [
+        {
+          type: "text",
+          text: resultText,
+        },
+      ],
+      isError: false,
+    };
+  }
+
+  static async get(
+    request: CallToolRequest,
+    tasks: tasks_v1.Tasks,
+  ): Promise<CallToolResult> {
+    const taskListId = request.params.arguments?.taskListId as string;
+
+    if (!taskListId) {
+      throw new Error("Task list ID is required");
+    }
+
+    const response = await tasks.tasklists.get({
+      tasklist: taskListId,
+    });
+
+    const taskList = response.data;
+
+    const details = [
+      `Title: ${taskList.title || "Untitled"}`,
+      `ID: ${taskList.id || "Unknown"}`,
+      `Kind: ${taskList.kind || "Unknown"}`,
+      `ETag: ${taskList.etag || "Unknown"}`,
+      `Updated: ${taskList.updated || "Unknown"}`,
+      `Self Link: ${taskList.selfLink || "N/A"}`,
+    ].join("\n");
+
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Task List Details:\n${details}`,
+        },
+      ],
+      isError: false,
+    };
+  }
+
+  static async create(
+    request: CallToolRequest,
+    tasks: tasks_v1.Tasks,
+  ): Promise<CallToolResult> {
+    const title = request.params.arguments?.title as string;
+
+    if (!title) {
+      throw new Error("Task list title is required");
+    }
+
+    if (title.length > 1024) {
+      throw new Error("Task list title must not exceed 1024 characters");
+    }
+
+    const response = await tasks.tasklists.insert({
+      requestBody: {
+        title: title,
+      },
+    });
+
+    const taskList = response.data;
+
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Task list created successfully:\nTitle: ${taskList.title}\nID: ${taskList.id}`,
+        },
+      ],
+      isError: false,
+    };
+  }
+
+  static async update(
+    request: CallToolRequest,
+    tasks: tasks_v1.Tasks,
+  ): Promise<CallToolResult> {
+    const taskListId = request.params.arguments?.taskListId as string;
+    const title = request.params.arguments?.title as string;
+
+    if (!taskListId) {
+      throw new Error("Task list ID is required");
+    }
+
+    if (!title) {
+      throw new Error("Task list title is required");
+    }
+
+    if (title.length > 1024) {
+      throw new Error("Task list title must not exceed 1024 characters");
+    }
+
+    const response = await tasks.tasklists.update({
+      tasklist: taskListId,
+      requestBody: {
+        title: title,
+      },
+    });
+
+    const taskList = response.data;
+
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Task list updated successfully:\nTitle: ${taskList.title}\nID: ${taskList.id}`,
+        },
+      ],
+      isError: false,
+    };
+  }
+
+  static async delete(
+    request: CallToolRequest,
+    tasks: tasks_v1.Tasks,
+  ): Promise<CallToolResult> {
+    const taskListId = request.params.arguments?.taskListId as string;
+
+    if (!taskListId) {
+      throw new Error("Task list ID is required");
+    }
+
+    if (taskListId === "@default") {
+      throw new Error("Cannot delete the default task list");
+    }
+
+    await tasks.tasklists.delete({
+      tasklist: taskListId,
+    });
+
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Task list "${taskListId}" deleted successfully`,
         },
       ],
       isError: false,
