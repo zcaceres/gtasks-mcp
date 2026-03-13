@@ -12,7 +12,7 @@ import {
 } from "@modelcontextprotocol/sdk/types.js";
 import fs from "fs";
 import { google, tasks_v1 } from "googleapis";
-import path from "path";
+import { join } from "path";
 import { TaskActions, TaskResources } from "./Tasks.js";
 
 const tasks = google.tasks("v1");
@@ -259,19 +259,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   throw new Error("Tool not found");
 });
 
-const credentialsPath = path.join(
-  path.dirname(new URL(import.meta.url).pathname),
-  "../.gtasks-server-credentials.json",
-);
+const credentialsPath = join(process.cwd(), '.gtasks-server-credentials.json');
 
 async function authenticateAndSaveCredentials() {
   console.log("Launching auth flow…");
-  const p = path.join(
-    path.dirname(new URL(import.meta.url).pathname),
-    "../gcp-oauth.keys.json",
-  );
-
-  console.log(p);
+  const p = join(process.cwd(), 'gcp-oauth.keys.json');
+  console.log("Credential Path:" + p);
   const auth = await authenticate({
     keyfilePath: p,
     scopes: ["https://www.googleapis.com/auth/tasks"],
