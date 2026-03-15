@@ -8,6 +8,7 @@ import { GaxiosResponse } from "gaxios";
 import { tasks_v1 } from "googleapis";
 
 const MAX_TASK_RESULTS = 100;
+const MAX_DISCOVERED_RESOURCES = 500;
 
 /**
  * Normalize a due date string to RFC 3339 format expected by Google Tasks API.
@@ -63,18 +64,9 @@ export class TaskResources {
   }
 
   static async list(
-    request: ListResourcesRequest,
+    _request: ListResourcesRequest,
     tasks: tasks_v1.Tasks,
-  ): Promise<[tasks_v1.Schema$Task[], string | null]> {
-    const pageSize = 10;
-    const params: any = {
-      maxResults: pageSize,
-    };
-
-    if (request.params?.cursor) {
-      params.pageToken = request.params.cursor;
-    }
-
+  ): Promise<tasks_v1.Schema$Task[]> {
     const taskListsResponse = await tasks.tasklists.list({
       maxResults: MAX_TASK_RESULTS,
     });
@@ -82,23 +74,27 @@ export class TaskResources {
     const taskLists = taskListsResponse.data.items || [];
 
     let allTasks: tasks_v1.Schema$Task[] = [];
-    let nextPageToken = null;
 
     for (const taskList of taskLists) {
+      if (allTasks.length >= MAX_DISCOVERED_RESOURCES) {
+        break;
+      }
+
+      if (!taskList.id) {
+        continue;
+      }
+
       const tasksResponse = await tasks.tasks.list({
         tasklist: taskList.id,
-        ...params,
+        maxResults: MAX_TASK_RESULTS,
       });
 
       const taskItems = tasksResponse.data.items || [];
-      allTasks = allTasks.concat(taskItems);
-
-      if (tasksResponse.data.nextPageToken) {
-        nextPageToken = tasksResponse.data.nextPageToken;
-      }
+      const remainingCapacity = MAX_DISCOVERED_RESOURCES - allTasks.length;
+      allTasks = allTasks.concat(taskItems.slice(0, remainingCapacity));
     }
 
-    return [allTasks, nextPageToken];
+    return allTasks;
   }
 }
 
