@@ -61,6 +61,10 @@ The server provides access to Google Tasks resources:
   - Supports reading task details including title, status, due date, notes, and other metadata
   - Can be listed, read, created, updated, and deleted using the provided tools
 
+## Hosted deployment
+
+A hosted deployment is available on [Fronteir AI](https://fronteir.ai/mcp/zcaceres-gtasks-mcp).
+
 ## Getting started
 
 1. [Create a new Google Cloud project](https://console.cloud.google.com/projectcreate)
