@@ -263,17 +263,15 @@ const credentialsPath = path.join(
   path.dirname(new URL(import.meta.url).pathname),
   "../.gtasks-server-credentials.json",
 );
+const oauthKeysPath = path.join(
+  path.dirname(new URL(import.meta.url).pathname),
+  "../gcp-oauth.keys.json",
+);
 
 async function authenticateAndSaveCredentials() {
   console.log("Launching auth flow…");
-  const p = path.join(
-    path.dirname(new URL(import.meta.url).pathname),
-    "../gcp-oauth.keys.json",
-  );
-
-  console.log(p);
   const auth = await authenticate({
-    keyfilePath: p,
+    keyfilePath: oauthKeysPath,
     scopes: ["https://www.googleapis.com/auth/tasks"],
   });
   fs.writeFileSync(credentialsPath, JSON.stringify(auth.credentials));
@@ -288,9 +286,18 @@ async function loadCredentialsAndRunServer() {
     process.exit(1);
   }
 
+  const { client_id, client_secret, redirect_uris } = JSON.parse(
+    fs.readFileSync(oauthKeysPath, "utf-8"),
+  ).installed;
   const credentials = JSON.parse(fs.readFileSync(credentialsPath, "utf-8"));
-  const auth = new google.auth.OAuth2();
+  const auth = new google.auth.OAuth2(client_id, client_secret, redirect_uris?.[0]);
   auth.setCredentials(credentials);
+  auth.on("tokens", (tokens) => {
+    fs.writeFileSync(
+      credentialsPath,
+      JSON.stringify({ ...credentials, ...tokens }),
+    );
+  });
   google.options({ auth });
 
   const transport = new StdioServerTransport();
