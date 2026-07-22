@@ -13,6 +13,7 @@ import {
 import fs from "fs";
 import { google, tasks_v1 } from "googleapis";
 import path from "path";
+import { fileURLToPath } from "url";
 import { TaskActions, TaskResources } from "./Tasks.js";
 
 const tasks = google.tasks("v1");
@@ -260,14 +261,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 });
 
 const credentialsPath = path.join(
-  path.dirname(new URL(import.meta.url).pathname),
+  path.dirname(fileURLToPath(import.meta.url)),
   "../.gtasks-server-credentials.json",
 );
 
 async function authenticateAndSaveCredentials() {
   console.log("Launching auth flow…");
   const p = path.join(
-    path.dirname(new URL(import.meta.url).pathname),
+    path.dirname(fileURLToPath(import.meta.url)),
     "../gcp-oauth.keys.json",
   );
 
