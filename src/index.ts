@@ -57,6 +57,7 @@ server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
     `Position: ${task.position || "Unknown"}`,
     `ETag: ${task.etag || "Unknown"}`,
     `Links: ${task.links || "Unknown"}`,
+    `WebViewLink: ${task.webViewLink || "None"}`,
     `Kind: ${task.kind || "Unknown"}`,
     `Status: ${task.status || "Unknown"}`,
     `Created: ${task.updated || "Unknown"}`,
