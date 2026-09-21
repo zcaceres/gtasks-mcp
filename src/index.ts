@@ -13,6 +13,7 @@ import {
 import fs from "fs";
 import { google, tasks_v1 } from "googleapis";
 import path from "path";
+import { createOAuthClient } from "./Auth.js";
 import { TaskActions, TaskResources } from "./Tasks.js";
 
 const tasks = google.tasks("v1");
@@ -288,9 +289,14 @@ async function loadCredentialsAndRunServer() {
     process.exit(1);
   }
 
+  const oauthKeysPath = path.join(
+    path.dirname(new URL(import.meta.url).pathname),
+    "../gcp-oauth.keys.json",
+  );
+  const oauthKeys = JSON.parse(fs.readFileSync(oauthKeysPath, "utf-8"));
+
   const credentials = JSON.parse(fs.readFileSync(credentialsPath, "utf-8"));
-  const auth = new google.auth.OAuth2();
-  auth.setCredentials(credentials);
+  const auth = createOAuthClient(oauthKeys, credentials);
   google.options({ auth });
 
   const transport = new StdioServerTransport();
