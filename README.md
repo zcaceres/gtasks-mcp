@@ -1,3 +1,5 @@
+[![MseeP.ai Security Assessment Badge](https://mseep.net/pr/zcaceres-gtasks-mcp-badge.png)](https://mseep.ai/app/zcaceres-gtasks-mcp)
+
 # Google Tasks MCP Server
 
 ![gtasks mcp logo](./logo.jpg)
