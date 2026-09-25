@@ -1,6 +1,8 @@
 # Google Tasks MCP Server
 
 ![gtasks mcp logo](./logo.jpg)
+
+[![Trust Score](https://archestra.ai/mcp-catalog/api/badge/quality/zcaceres/gtasks-mcp)](https://archestra.ai/mcp-catalog/zcaceres__gtasks-mcp)
 [![smithery badge](https://smithery.ai/badge/@zcaceres/gtasks)](https://smithery.ai/server/@zcaceres/gtasks)
 
 This MCP server integrates with Google Tasks to allow listing, reading, searching, creating, updating, and deleting tasks.
