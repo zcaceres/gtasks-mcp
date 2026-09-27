@@ -269,7 +269,7 @@ export class TaskActions {
       content: [
         {
           type: "text",
-          text: `Found ${allTasks.length} tasks:\n${taskList}`,
+          text: `Found ${filteredItems.length} tasks:\n${taskList}`,
         },
       ],
       isError: false,
