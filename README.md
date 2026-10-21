@@ -1,7 +1,7 @@
 # Google Tasks MCP Server
 
 ![gtasks mcp logo](./logo.jpg)
-[![smithery badge](https://smithery.ai/badge/@zcaceres/gtasks)](https://smithery.ai/server/@zcaceres/gtasks)
+[![Listed on LightNow](https://lightnow.ai/badge/io.github.zcaceres/gtasks-mcp?variant=listed)](https://lightnow.ai/servers/io.github.zcaceres/gtasks-mcp)
 
 This MCP server integrates with Google Tasks to allow listing, reading, searching, creating, updating, and deleting tasks.
 
